@@ -1,14 +1,32 @@
-.PHONY: build docs gh-pages
+.PHONY: build build-scsynth clean docs docs-clean help install-scsynth lint mypy pytest reformat test test-scsynth
 .DEFAULT_GOAL := help
 
 project = supriya
 origin := $(shell git config --get remote.origin.url)
-formatPaths = ${project}/ docs/ examples/ tests/ *.py
-mypyPaths = ${project}/ examples/ tests/
-testPaths = ${project}/ tests/
+formatPaths = src/${project}/ docs/ examples/ tests/ *.py
+mypyPaths = src/${project}/ examples/ tests/
+testPaths = src/${project}/ tests/
+
+SC_SOURCE_DIR ?= $(HOME)/src/supercollider
+SC_BUILD_DIR ?= $(HOME)/src/supercollider/build
 
 help: ## This help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
+
+build: ## Build wheel via uv
+	uv build
+
+build-scsynth: ## Build wheel with embedded libscsynth
+	uv build \
+		-C cmake.define.SUPRIYA_EMBED_SCSYNTH=ON \
+		-C cmake.define.SC_SOURCE_DIR=$(SC_SOURCE_DIR) \
+		-C cmake.define.SC_BUILD_DIR=$(SC_BUILD_DIR)
+
+install-scsynth: ## Install editable with embedded libscsynth
+	uv pip install -e . \
+		-C cmake.define.SUPRIYA_EMBED_SCSYNTH=ON \
+		-C cmake.define.SC_SOURCE_DIR=$(SC_SOURCE_DIR) \
+		-C cmake.define.SC_BUILD_DIR=$(SC_BUILD_DIR)
 
 clean: ## Clean-out transitory files
 	find . -name '*.pyc' | xargs rm
@@ -31,33 +49,48 @@ docs-clean: ## Build documentation from scratch
 lint: reformat ruff-lint mypy ## Run all linters
 
 mypy: ## Type-check via mypy
-	mypy ${mypyPaths}
+	uv run mypy ${mypyPaths}
 
 mypy-cov: ## Type-check via mypy with coverage reported to ./mypycov/
-	mypy --html-report ./mypycov/ ${mypyPaths}
+	uv run mypy --html-report ./mypycov/ ${mypyPaths}
 
 mypy-strict: ## Type-check via mypy strictly
-	mypy --strict ${mypyPaths}
+	uv run mypy --strict ${mypyPaths}
 
 pytest: ## Unit test via pytest
-	pytest ${testPaths} --cov=supriya
+	uv run pytest ${testPaths} --cov=supriya
+
+test: ## Run tests via uv
+	uv run pytest tests/
+
+test-scsynth: ## Run tests using venv directly (after make install-scsynth)
+	.venv/bin/python -m pytest tests/ \
+		--ignore=tests/book \
+		--ignore=tests/contexts/test_Scope.py \
+		--ignore=tests/contexts/test_Server_buffers.py \
+		--ignore=tests/contexts/test_Server_buses.py \
+		--ignore=tests/contexts/test_Server_misc.py \
+		--ignore=tests/contexts/test_Server_nodes.py \
+		--ignore=tests/contexts/test_Server_synthdefs.py \
+		--ignore=tests/patterns \
+		--ignore=tests/test_examples.py
 
 reformat: ruff-imports-fix ruff-format-fix ## Reformat codebase
 
 ruff-format: ## Lint via ruff
-	ruff format --check --diff ${formatPaths}
+	uv run ruff format --check --diff ${formatPaths}
 
 ruff-format-fix: ## Lint via ruff
-	ruff format ${formatPaths}
+	uv run ruff format ${formatPaths}
 
 ruff-imports: ## Format imports via ruff
-	ruff check --select I,RUF022 ${formatPaths}
+	uv run ruff check --select I,RUF022 ${formatPaths}
 
 ruff-imports-fix: ## Format imports via ruff
-	ruff check --select I,RUF022 --fix ${formatPaths}
+	uv run ruff check --select I,RUF022 --fix ${formatPaths}
 
 ruff-lint: ## Lint via ruff
-	ruff check --diff ${formatPaths}
+	uv run ruff check --diff ${formatPaths}
 
 ruff-lint-fix: ## Lint via ruff
-	ruff check --fix ${formatPaths}
+	uv run ruff check --fix ${formatPaths}

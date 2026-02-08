@@ -68,7 +68,6 @@ if not (
 
 samples_path = Path(__file__).parent / "samples"
 
-
 __all__ = [
     "AddAction",
     "AsyncClock",

@@ -46,7 +46,12 @@ from ..osc import (
     OscProtocolOffline,
     ThreadedOscProtocol,
 )
-from ..scsynth import AsyncProcessProtocol, Options, ThreadedProcessProtocol
+from ..scsynth import (
+    AsyncProcessProtocol,
+    EmbeddedProcessProtocol,
+    Options,
+    ThreadedProcessProtocol,
+)
 from ..typing import AddActionLike, ServerLifecycleEventLike, SupportsOsc
 from ..ugens import SYSTEM_SYNTHDEFS
 from .core import Context
@@ -503,6 +508,7 @@ class Server(BaseServer):
         self,
         options: Options | None = None,
         name: str | None = None,
+        embedded: bool = False,
         **kwargs,
     ) -> None:
         def on_panic(event: ServerShutdownEvent) -> None:
@@ -523,10 +529,20 @@ class Server(BaseServer):
         self._osc_protocol: ThreadedOscProtocol = ThreadedOscProtocol(
             name=name, on_panic_callback=lambda: on_panic(ServerShutdownEvent.OSC_PANIC)
         )
-        self._process_protocol: ThreadedProcessProtocol = ThreadedProcessProtocol(
-            name=name,
-            on_panic_callback=lambda: on_panic(ServerShutdownEvent.PROCESS_PANIC),
-        )
+        if embedded:
+            self._process_protocol: ThreadedProcessProtocol | EmbeddedProcessProtocol = (
+                EmbeddedProcessProtocol(
+                    name=name,
+                    on_panic_callback=lambda: on_panic(
+                        ServerShutdownEvent.PROCESS_PANIC
+                    ),
+                )
+            )
+        else:
+            self._process_protocol = ThreadedProcessProtocol(
+                name=name,
+                on_panic_callback=lambda: on_panic(ServerShutdownEvent.PROCESS_PANIC),
+            )
         self._setup_osc_callbacks(self._osc_protocol)
 
     ### PRIVATE METHODS ###
@@ -1120,7 +1136,7 @@ class Server(BaseServer):
         return self._osc_protocol
 
     @property
-    def process_protocol(self) -> ThreadedProcessProtocol:
+    def process_protocol(self) -> ThreadedProcessProtocol | EmbeddedProcessProtocol:
         """
         Get the server's process protocol.
         """
@@ -1138,7 +1154,11 @@ class AsyncServer(BaseServer):
     ### INITIALIZER ###
 
     def __init__(
-        self, options: Options | None = None, name: str | None = None, **kwargs
+        self,
+        options: Options | None = None,
+        name: str | None = None,
+        embedded: bool = False,
+        **kwargs,
     ) -> None:
         def on_panic(event: ServerShutdownEvent) -> None:
             if not self._shutdown_future.done():
@@ -1150,16 +1170,29 @@ class AsyncServer(BaseServer):
             options=options,
             **kwargs,
         )
+        self._embedded = embedded
         self._boot_future: asyncio.Future[bool] = asyncio.Future()
         self._exit_future: asyncio.Future[bool] = asyncio.Future()
         self._shutdown_future: asyncio.Future[ServerShutdownEvent] = asyncio.Future()
         self._osc_protocol: AsyncOscProtocol = AsyncOscProtocol(
             name=name, on_panic_callback=lambda: on_panic(ServerShutdownEvent.OSC_PANIC)
         )
-        self._process_protocol: AsyncProcessProtocol = AsyncProcessProtocol(
-            name=name,
-            on_panic_callback=lambda: on_panic(ServerShutdownEvent.PROCESS_PANIC),
-        )
+        if embedded:
+            # Reuse EmbeddedProcessProtocol (blocking World API needs a thread
+            # anyway, and AsyncServer._lifecycle wraps it with await-on-future)
+            self._process_protocol: AsyncProcessProtocol | EmbeddedProcessProtocol = (
+                EmbeddedProcessProtocol(
+                    name=name,
+                    on_panic_callback=lambda: on_panic(
+                        ServerShutdownEvent.PROCESS_PANIC
+                    ),
+                )
+            )
+        else:
+            self._process_protocol = AsyncProcessProtocol(
+                name=name,
+                on_panic_callback=lambda: on_panic(ServerShutdownEvent.PROCESS_PANIC),
+            )
         self._setup_osc_callbacks(self._osc_protocol)
 
     ### PRIVATE METHODS ###
@@ -1170,7 +1203,14 @@ class AsyncServer(BaseServer):
         if owned:
             await self._on_lifecycle_event(ServerLifecycleEvent.BOOTING)
             try:
-                await self._process_protocol.boot(self._options)
+                if self._embedded:
+                    # EmbeddedProcessProtocol.boot() is synchronous
+                    loop = asyncio.get_running_loop()
+                    await loop.run_in_executor(
+                        None, self._process_protocol.boot, self._options
+                    )
+                else:
+                    await self._process_protocol.boot(self._options)
             except ServerCannotBoot:
                 await self._on_lifecycle_event(ServerLifecycleEvent.PROCESS_PANICKED)
                 self._boot_status = BootStatus.OFFLINE
@@ -1237,7 +1277,11 @@ class AsyncServer(BaseServer):
         logger.info(log_prefix + "disconnected!")
         await self._on_lifecycle_event(ServerLifecycleEvent.DISCONNECTED)
         if owned:
-            await self._process_protocol.quit()
+            if self._embedded:
+                loop = asyncio.get_running_loop()
+                await loop.run_in_executor(None, self._process_protocol.quit)
+            else:
+                await self._process_protocol.quit()
             if shutdown == ServerShutdownEvent.QUIT:
                 await self._on_lifecycle_event(ServerLifecycleEvent.PROCESS_QUIT)
         self._boot_status = BootStatus.OFFLINE
@@ -1760,7 +1804,7 @@ class AsyncServer(BaseServer):
         return self._osc_protocol
 
     @property
-    def process_protocol(self) -> AsyncProcessProtocol:
+    def process_protocol(self) -> AsyncProcessProtocol | EmbeddedProcessProtocol:
         """
         Get the server's process protocol.
         """

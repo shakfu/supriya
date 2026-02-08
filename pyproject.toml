@@ -1,10 +1,15 @@
-[build-system]
-build-backend = "setuptools.build_meta"
-requires = ["Cython", "setuptools>=40.6.0", "wheel"]
-
 [project]
+name = "supriya"
+description = "A Python API for SuperCollider"
+# dynamic = ["version"]
+keywords = ["audio", "dsp", "music composition", "scsynth", "supercollider", "synthesis"]
+license = {text = "MIT"}
+version = "0.1.0"
+readme = "README.md"
+requires-python = ">= 3.10"
 authors = [
-  {name = "Joséphine Wolf Oberholtzer", email = "josephine.wolf.oberholtzer@gmail.com"}
+  { name = "Joséphine Wolf Oberholtzer", email = "josephine.wolf.oberholtzer@gmail.com"},
+  { name = "Shakeeb Alireza", email = "shakfu@users.noreply.github.com" },
 ]
 classifiers = [
   "Framework :: AsyncIO",
@@ -29,59 +34,79 @@ dependencies = [
   "psutil",
   "uqbar >= 0.9.6",
 ]
-description = "A Python API for SuperCollider"
-dynamic = ["version"]
-keywords = ["audio", "dsp", "music composition", "scsynth", "supercollider", "synthesis"]
-license = {text = "MIT"}
-name = "supriya"
-readme = "README.md"
-requires-python = ">= 3.10"
 
-[project.optional-dependencies]
-docs = [
-  "supriya[examples]",
-  "jupyterlab",
-  "jupyterlab-rise",
-  "librosa",
-  "matplotlib",
-  "mypy",
-  "soxr",
-  "sphinx",
-  "sphinx-immaterial",
-  "sphinx-toolbox",
-  "sphinxext-opengraph",
-  "standard-aifc; python_version >= '3.13'",  # aifc removed in 3.13
-  "standard-sunau; python_version >= '3.13'",  # sunau removed in 3.13
+[dependency-groups]
+dev = [
+    "mypy>=1.19.1",
+    "pytest>=8.4.2",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=7.0.0",
+    "pytest-lazy-fixtures>=1.0.0",
+    "pytest-mock>=3.12",
+    "ruff>=0.14.9",
+    "standard-aifc; python_version >= '3.13'",
+    "twine>=6.2.0",
 ]
-examples = [
-  "pynput",
-  "python-rtmidi",
-]
-test = [
-  "IPython",
-  "librosa",
-  "lxml",
-  "matplotlib",
-  "mypy",
-  "pytest",
-  "pytest-asyncio",
-  "pytest-cov",
-  "pytest-lazy-fixtures",
-  "pytest-mock",
-  "pytest-rerunfailures",
-  "ruff",
-  "standard-aifc; python_version >= '3.13'",  # aifc removed in 3.13
-  "standard-sunau; python_version >= '3.13'",  # sunau removed in 3.13
-  "types-PyYAML",
-  "types-docutils",
-  "types-psutil",
-  "types-pynput",
-]
+
+# [project.optional-dependencies]
+# docs = [
+#   "supriya[examples]",
+#   "jupyterlab",
+#   "jupyterlab-rise",
+#   "librosa",
+#   "matplotlib",
+#   "mypy",
+#   "soxr",
+#   "sphinx",
+#   "sphinx-immaterial",
+#   "sphinx-toolbox",
+#   "sphinxext-opengraph",
+#   "standard-aifc; python_version >= '3.13'",  # aifc removed in 3.13
+#   "standard-sunau; python_version >= '3.13'",  # sunau removed in 3.13
+# ]
+# examples = [
+#   "pynput",
+#   "python-rtmidi",
+# ]
+# test = [
+#   "IPython",
+#   "librosa",
+#   "lxml",
+#   "matplotlib",
+#   "mypy",
+#   "pytest",
+#   "pytest-asyncio",
+#   "pytest-cov",
+#   "pytest-lazy-fixtures",
+#   "pytest-mock",
+#   "pytest-rerunfailures",
+#   "ruff",
+#   "standard-aifc; python_version >= '3.13'",  # aifc removed in 3.13
+#   "standard-sunau; python_version >= '3.13'",  # sunau removed in 3.13
+#   "types-PyYAML",
+#   "types-docutils",
+#   "types-psutil",
+#   "types-pynput",
+# ]
 
 [project.urls]
 homepage = "https://github.com/supriya-project/supriya"
 documentation = "https://supriya-project.github.io/supriya"
 repository = "https://github.com/supriya-project/supriya"
+
+[build-system]
+requires = ["scikit-build-core>=0.8", "nanobind"]
+build-backend = "scikit_build_core.build"
+
+[tool.scikit-build]
+wheel.packages = ["src/supriya"]
+cmake.args = []
+cmake.define = {}
+cmake.build-type = "Release"
+cmake.source-dir = "."
+sdist.include = ["vendor/"]
+sdist.exclude = []
+wheel.exclude = ["*.cpp", "*.c", "*.h", "*.hpp"]
 
 [tool.cibuildwheel]
 build = "cp3{10,11,12,13}-*"
@@ -121,12 +146,9 @@ markers = [
 ]
 testpaths = [
   "tests",
-  "supriya",
+  "src/supriya",
 ]
 
 [tool.ruff]
 extend-include = ["*.ipynb"]
 line-length = 88
-
-[tool.setuptools.package-data]
-supriya = ["*.pxd", "*.pyx"]

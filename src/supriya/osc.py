@@ -33,6 +33,11 @@ from .typing import FutureLike, SupportsOsc
 from .ugens import decompile_synthdefs
 from .utils import group_by_count
 
+try:
+    from . import _osc as _osc_native
+except ImportError:
+    _osc_native = None  # type: ignore[assignment]
+
 osc_protocol_logger = logging.getLogger(__name__)
 osc_in_logger = logging.getLogger("supriya.osc.in")
 osc_out_logger = logging.getLogger("supriya.osc.out")
@@ -280,7 +285,12 @@ class OscMessage:
     ### PUBLIC METHODS ###
 
     def to_datagram(self) -> bytes:
-        # address can be a string or (in SuperCollider) an int
+        if _osc_native is not None:
+            if isinstance(self.address, str):
+                return bytes(_osc_native.encode_message(self.address, *self.contents))
+            else:
+                return bytes(_osc_native.encode_message_int(self.address, *self.contents))
+        # Fallback: pure Python
         if isinstance(self.address, str):
             encoded_address = self._encode_string(self.address)
         else:
@@ -297,6 +307,10 @@ class OscMessage:
 
     @classmethod
     def from_datagram(cls, datagram: bytes) -> "OscMessage":
+        if _osc_native is not None:
+            address, contents = _osc_native.decode_message(datagram)
+            return cls(address, *contents)
+        # Fallback: pure Python
         remainder = datagram
         address, remainder = cls._decode_string(remainder)
         type_tags, remainder = cls._decode_string(remainder)
@@ -482,6 +496,18 @@ class OscBundle:
 
     @classmethod
     def from_datagram(cls, datagram: bytes) -> "OscBundle":
+        if _osc_native is not None:
+            if not datagram.startswith(BUNDLE_PREFIX):
+                raise ValueError("datagram is not a bundle")
+            timestamp, element_datagrams = _osc_native.decode_bundle(datagram)
+            contents = []
+            for elem in element_datagrams:
+                if elem.startswith(BUNDLE_PREFIX):
+                    contents.append(cls.from_datagram(elem))
+                else:
+                    contents.append(OscMessage.from_datagram(elem))
+            return cls(timestamp=timestamp, contents=tuple(contents))
+        # Fallback: pure Python
         if not datagram.startswith(BUNDLE_PREFIX):
             raise ValueError("datagram is not a bundle")
         remainder = datagram[8:]

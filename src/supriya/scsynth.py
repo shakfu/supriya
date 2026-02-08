@@ -177,6 +177,8 @@ class Options:
             pairs["-T"] = str(self.threads)
         if self.ugen_plugins_path:
             pairs["-U"] = str(self.ugen_plugins_path)
+        elif _is_bundled(Path(result[0])):
+            pairs["-U"] = str(Path(__file__).parent / "plugins")
         if 0 < self.verbosity:
             pairs["-v"] = str(self.verbosity)
         if self.wire_buffer_count != 64:
@@ -204,6 +206,15 @@ class Options:
         )
 
 
+def _is_bundled(executable_path: Path) -> bool:
+    """Check if the given scsynth path is the bundled one."""
+    bundled = Path(__file__).parent / "bin" / "scsynth"
+    try:
+        return executable_path.resolve() == bundled.resolve()
+    except OSError:
+        return False
+
+
 def find(scsynth_path=None) -> Path:
     """
     Find the ``scsynth`` executable.
@@ -211,14 +222,22 @@ def find(scsynth_path=None) -> Path:
     The following paths, if defined, will be searched (prioritised as ordered):
 
     1. The absolute path ``scsynth_path``
-    2. The environment variable ``SUPRIYA_SERVER_EXECUTABLE`` (pointing to the `scsynth`
+    2. The bundled ``scsynth`` binary (shipped in the wheel)
+    3. The environment variable ``SUPRIYA_SERVER_EXECUTABLE`` (pointing to the `scsynth`
        binary)
-    3. The user's ``PATH``
-    4. Common installation directories of the SuperCollider application.
+    4. The user's ``PATH``
+    5. Common installation directories of the SuperCollider application.
 
     Returns a path to the ``scsynth`` executable. Raises ``RuntimeError`` if no path is
     found.
     """
+    if scsynth_path:
+        path = Path(scsynth_path)
+        if path.exists():
+            return path
+    bundled = Path(__file__).parent / "bin" / "scsynth"
+    if bundled.exists():
+        return bundled
     if find_executable(
         str(
             path := Path(
@@ -608,6 +627,177 @@ class AsyncProcessProtocol(asyncio.SubprocessProtocol, ProcessProtocol):
             return
         self.transport.close()
         await self.exit_future
+        logger.info(
+            f"[{self.options.ip_address}:{self.options.port}/{self.name or hex(id(self))}] "
+            "... quit!"
+        )
+
+
+def _options_to_world_kwargs(options: Options) -> dict:
+    """Map supriya Options fields to _scsynth.world_new keyword arguments."""
+    kwargs: dict = {
+        "num_audio_bus_channels": options.audio_bus_channel_count,
+        "num_input_bus_channels": options.input_bus_channel_count,
+        "num_output_bus_channels": options.output_bus_channel_count,
+        "num_control_bus_channels": options.control_bus_channel_count,
+        "block_size": options.block_size,
+        "num_buffers": options.buffer_count,
+        "max_nodes": options.maximum_node_count,
+        "max_graph_defs": options.maximum_synthdef_count,
+        "max_wire_bufs": options.wire_buffer_count,
+        "num_rgens": options.random_number_generator_count,
+        "max_logins": options.maximum_logins,
+        "realtime_memory_size": options.memory_size,
+        "load_graph_defs": 1 if options.load_synthdefs else 0,
+        "memory_locking": options.memory_locking,
+        "realtime": options.realtime,
+        "verbosity": options.verbosity,
+        "rendezvous": options.zero_configuration,
+        "shared_memory_id": options.port,
+    }
+    if options.sample_rate is not None:
+        kwargs["preferred_sample_rate"] = options.sample_rate
+    if options.hardware_buffer_size is not None:
+        kwargs["preferred_hardware_buffer_size"] = options.hardware_buffer_size
+    if options.ugen_plugins_path:
+        kwargs["ugen_plugins_path"] = options.ugen_plugins_path
+    if options.restricted_path is not None:
+        kwargs["restricted_path"] = options.restricted_path
+    if options.password:
+        kwargs["password"] = options.password
+    if options.input_device:
+        kwargs["in_device_name"] = options.input_device
+    if options.output_device:
+        kwargs["out_device_name"] = options.output_device
+    if options.input_stream_mask:
+        kwargs["input_streams_enabled"] = options.input_stream_mask
+    if options.output_stream_mask:
+        kwargs["output_streams_enabled"] = options.output_stream_mask
+    if options.safety_clip is not None:
+        kwargs["safety_clip_threshold"] = float(options.safety_clip)
+    return kwargs
+
+
+class EmbeddedProcessProtocol(ProcessProtocol):
+    """Process protocol that runs scsynth in-process via libscsynth."""
+
+    def __init__(
+        self,
+        *,
+        name: str | None = None,
+        on_boot_callback: Callable | None = None,
+        on_panic_callback: Callable | None = None,
+        on_quit_callback: Callable | None = None,
+    ) -> None:
+        super().__init__(
+            name=name,
+            on_boot_callback=on_boot_callback,
+            on_panic_callback=on_panic_callback,
+            on_quit_callback=on_quit_callback,
+        )
+        atexit.register(self.quit)
+        self.boot_future: concurrent.futures.Future[bool] = concurrent.futures.Future()
+        self.exit_future: concurrent.futures.Future[int] = concurrent.futures.Future()
+        self._world = None
+        self.thread: threading.Thread | None = None
+
+    def _boot(self, options: Options) -> bool:
+        # Override to skip Options.serialize() which requires finding scsynth
+        self.options = options
+        label = self.name or hex(id(self))
+        logger.info(
+            f"[{options.ip_address}:{options.port}/{label}] "
+            "booting (embedded) ..."
+        )
+        if self.status != BootStatus.OFFLINE:
+            logger.info(
+                f"[{options.ip_address}:{options.port}/{label}] "
+                "... already booted!"
+            )
+            return False
+        self.status = BootStatus.BOOTING
+        self.error_text = ""
+        self.buffer_ = ""
+        return True
+
+    def boot(self, options: Options) -> None:
+        if not self._boot(options):
+            return
+        from supriya._scsynth import set_print_func, world_new, world_open_udp
+
+        self.boot_future = concurrent.futures.Future()
+        self.exit_future = concurrent.futures.Future()
+
+        # Route scsynth output to Python logging
+        label = self.name or hex(id(self))
+        set_print_func(
+            lambda text, _label=label: logger.info(
+                f"[scsynth/{_label}] {text.rstrip()}"
+            )
+        )
+
+        # Map supriya Options -> WorldOptions kwargs
+        world_kwargs = _options_to_world_kwargs(options)
+
+        try:
+            self._world = world_new(**world_kwargs)
+        except RuntimeError as exc:
+            self.boot_future.set_result(False)
+            self.status = BootStatus.OFFLINE
+            raise ServerCannotBoot(str(exc)) from exc
+
+        # Open UDP
+        if not world_open_udp(self._world, options.ip_address, options.port):
+            from supriya._scsynth import world_cleanup
+
+            world_cleanup(self._world)
+            self._world = None
+            self.boot_future.set_result(False)
+            self.status = BootStatus.OFFLINE
+            raise ServerCannotBoot("World_OpenUDP failed")
+
+        # Boot succeeded
+        self.status = BootStatus.ONLINE
+        self.boot_future.set_result(True)
+        if self.on_boot_callback:
+            self.on_boot_callback()
+
+        # Wait for quit in background thread
+        self.thread = threading.Thread(
+            target=self._wait_for_quit, daemon=True
+        )
+        self.thread.start()
+
+    def _wait_for_quit(self) -> None:
+        from supriya._scsynth import world_wait_for_quit
+
+        world_wait_for_quit(self._world, True)  # blocks until /quit
+        was_quitting = self.status == BootStatus.QUITTING
+        self.status = BootStatus.OFFLINE
+        self._world = None
+        self.exit_future.set_result(0)
+        if was_quitting and self.on_quit_callback:
+            self.on_quit_callback()
+        elif not was_quitting and self.on_panic_callback:
+            self.on_panic_callback()
+
+    def _shutdown(self) -> None:
+        if self.thread and self.thread.is_alive():
+            self.thread.join(timeout=5)
+            if self.thread.is_alive():
+                from supriya._scsynth import world_cleanup
+
+                if self._world is not None:
+                    world_cleanup(self._world, False)
+                self.thread.join()
+        self.status = BootStatus.OFFLINE
+
+    def quit(self) -> None:
+        if not self._quit():
+            return
+        # Server._lifecycle sends /quit OSC before calling this.
+        # World_WaitForQuit should return shortly after. Join the thread.
+        self._shutdown()
         logger.info(
             f"[{self.options.ip_address}:{self.options.port}/{self.name or hex(id(self))}] "
             "... quit!"
