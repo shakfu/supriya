@@ -192,7 +192,11 @@ class BaseServer(Context):
         return False
 
     def __repr__(self) -> str:
-        return f"<{type(self).__name__} {self.boot_status.name} [{shlex.join(self.options)}]>"
+        try:
+            options_str = shlex.join(self.options)
+        except RuntimeError:
+            options_str = "(embedded)"
+        return f"<{type(self).__name__} {self.boot_status.name} [{options_str}]>"
 
     ### PRIVATE METHODS ###
 
@@ -357,7 +361,7 @@ class BaseServer(Context):
             self._shared_memory = ServerSHM(
                 self._options.port, self._options.control_bus_channel_count
             )
-        except (ImportError, ModuleNotFoundError):
+        except (ImportError, ModuleNotFoundError, RuntimeError):
             pass
 
     def _setup_system(self) -> None:
@@ -548,6 +552,19 @@ class Server(BaseServer):
     ### PRIVATE METHODS ###
 
     def _lifecycle(self, owned: bool = True) -> None:
+        try:
+            self._lifecycle_inner(owned=owned)
+        except Exception:
+            logger.exception("lifecycle thread crashed")
+            self._boot_status = BootStatus.OFFLINE
+            if not self._shutdown_future.done():
+                self._shutdown_future.set_result(ServerShutdownEvent.PROCESS_PANIC)
+            if not self._boot_future.done():
+                self._boot_future.set_result(False)
+            if not self._exit_future.done():
+                self._exit_future.set_result(False)
+
+    def _lifecycle_inner(self, owned: bool = True) -> None:
         log_prefix = self._log_prefix()
         logger.info(log_prefix + "booting ...")
         if owned:
@@ -557,6 +574,10 @@ class Server(BaseServer):
             except ServerCannotBoot:
                 self._on_lifecycle_event(ServerLifecycleEvent.PROCESS_PANICKED)
                 self._boot_status = BootStatus.OFFLINE
+                if not self._shutdown_future.done():
+                    self._shutdown_future.set_result(
+                        ServerShutdownEvent.PROCESS_PANIC
+                    )
                 self._boot_future.set_result(False)
                 self._exit_future.set_result(False)
                 return
@@ -1198,6 +1219,19 @@ class AsyncServer(BaseServer):
     ### PRIVATE METHODS ###
 
     async def _lifecycle(self, owned: bool = True) -> None:
+        try:
+            await self._lifecycle_inner(owned=owned)
+        except Exception:
+            logger.exception("lifecycle task crashed")
+            self._boot_status = BootStatus.OFFLINE
+            if not self._shutdown_future.done():
+                self._shutdown_future.set_result(ServerShutdownEvent.PROCESS_PANIC)
+            if not self._boot_future.done():
+                self._boot_future.set_result(False)
+            if not self._exit_future.done():
+                self._exit_future.set_result(False)
+
+    async def _lifecycle_inner(self, owned: bool = True) -> None:
         log_prefix = self._log_prefix()
         logger.info(log_prefix + "booting ...")
         if owned:
@@ -1214,6 +1248,10 @@ class AsyncServer(BaseServer):
             except ServerCannotBoot:
                 await self._on_lifecycle_event(ServerLifecycleEvent.PROCESS_PANICKED)
                 self._boot_status = BootStatus.OFFLINE
+                if not self._shutdown_future.done():
+                    self._shutdown_future.set_result(
+                        ServerShutdownEvent.PROCESS_PANIC
+                    )
                 self._boot_future.set_result(False)
                 self._exit_future.set_result(False)
                 return

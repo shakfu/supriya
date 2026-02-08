@@ -274,6 +274,56 @@ def find(scsynth_path=None) -> Path:
     raise RuntimeError("Failed to locate executable")
 
 
+def find_ugen_plugins_path() -> Path | None:
+    """Find the UGen plugins directory for the embedded scsynth.
+
+    Searches:
+    1. The ``SC_PLUGIN_PATH`` environment variable.
+    2. The ``plugins`` directory next to a bundled scsynth binary.
+    3. The ``plugins`` directory next to the system scsynth binary.
+    4. Common SuperCollider installation plugin directories.
+    """
+    # Environment variable (standard SC mechanism)
+    env_path = os.environ.get("SC_PLUGIN_PATH")
+    if env_path:
+        path = Path(env_path)
+        if path.is_dir():
+            return path
+    # Next to bundled binary
+    bundled = Path(__file__).parent / "bin" / "plugins"
+    if bundled.is_dir():
+        return bundled
+    # Next to system scsynth
+    try:
+        scsynth = find()
+        plugins = scsynth.parent / "plugins"
+        if plugins.is_dir():
+            return plugins
+    except RuntimeError:
+        pass
+    # Common installation locations
+    system = platform.system()
+    if system == "Darwin":
+        candidates = [
+            Path("/Applications/SuperCollider.app/Contents/Resources/plugins"),
+            Path(
+                "/Applications/SuperCollider/SuperCollider.app"
+                "/Contents/Resources/plugins"
+            ),
+        ]
+    elif system == "Linux":
+        candidates = [
+            Path("/usr/lib/SuperCollider/plugins"),
+            Path("/usr/local/lib/SuperCollider/plugins"),
+        ]
+    else:
+        candidates = []
+    for path in candidates:
+        if path.is_dir():
+            return path
+    return None
+
+
 def kill():
     for process in psutil.process_iter():
         if process.name() in ("scsynth", "supernova", "scsynth.exe", "supernova.exe"):
@@ -659,8 +709,9 @@ def _options_to_world_kwargs(options: Options) -> dict:
         kwargs["preferred_sample_rate"] = options.sample_rate
     if options.hardware_buffer_size is not None:
         kwargs["preferred_hardware_buffer_size"] = options.hardware_buffer_size
-    if options.ugen_plugins_path:
-        kwargs["ugen_plugins_path"] = options.ugen_plugins_path
+    ugen_path = options.ugen_plugins_path or find_ugen_plugins_path()
+    if ugen_path:
+        kwargs["ugen_plugins_path"] = str(ugen_path)
     if options.restricted_path is not None:
         kwargs["restricted_path"] = options.restricted_path
     if options.password:
@@ -680,6 +731,8 @@ def _options_to_world_kwargs(options: Options) -> dict:
 
 class EmbeddedProcessProtocol(ProcessProtocol):
     """Process protocol that runs scsynth in-process via libscsynth."""
+
+    _active_world: bool = False
 
     def __init__(
         self,
@@ -728,13 +781,13 @@ class EmbeddedProcessProtocol(ProcessProtocol):
         self.boot_future = concurrent.futures.Future()
         self.exit_future = concurrent.futures.Future()
 
-        # Route scsynth output to Python logging
-        label = self.name or hex(id(self))
-        set_print_func(
-            lambda text, _label=label: logger.info(
-                f"[scsynth/{_label}] {text.rstrip()}"
+        # Only one embedded World can exist per process (SC global state)
+        if EmbeddedProcessProtocol._active_world:
+            self.boot_future.set_result(False)
+            self.status = BootStatus.OFFLINE
+            raise ServerCannotBoot(
+                "An embedded scsynth World is already running"
             )
-        )
 
         # Map supriya Options -> WorldOptions kwargs
         world_kwargs = _options_to_world_kwargs(options)
@@ -756,6 +809,17 @@ class EmbeddedProcessProtocol(ProcessProtocol):
             self.status = BootStatus.OFFLINE
             raise ServerCannotBoot("World_OpenUDP failed")
 
+        EmbeddedProcessProtocol._active_world = True
+
+        # Route scsynth output to Python logging (set after world_new to
+        # avoid GIL/logging deadlock with pytest's caplog handler during init)
+        label = self.name or hex(id(self))
+        set_print_func(
+            lambda text, _label=label: logger.info(
+                f"[scsynth/{_label}] {text.rstrip()}"
+            )
+        )
+
         # Boot succeeded
         self.status = BootStatus.ONLINE
         self.boot_future.set_result(True)
@@ -769,12 +833,14 @@ class EmbeddedProcessProtocol(ProcessProtocol):
         self.thread.start()
 
     def _wait_for_quit(self) -> None:
-        from supriya._scsynth import world_wait_for_quit
+        from supriya._scsynth import set_print_func, world_wait_for_quit
 
-        world_wait_for_quit(self._world, True)  # blocks until /quit
+        world_wait_for_quit(self._world, False)  # blocks until /quit
+        set_print_func(None)  # prevent callback into dead Python objects
         was_quitting = self.status == BootStatus.QUITTING
         self.status = BootStatus.OFFLINE
         self._world = None
+        EmbeddedProcessProtocol._active_world = False
         self.exit_future.set_result(0)
         if was_quitting and self.on_quit_callback:
             self.on_quit_callback()
@@ -791,6 +857,7 @@ class EmbeddedProcessProtocol(ProcessProtocol):
                     world_cleanup(self._world, False)
                 self.thread.join()
         self.status = BootStatus.OFFLINE
+        EmbeddedProcessProtocol._active_world = False
 
     def quit(self) -> None:
         if not self._quit():

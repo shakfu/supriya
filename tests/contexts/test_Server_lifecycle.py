@@ -25,6 +25,8 @@ from supriya.exceptions import (
 )
 from supriya.scsynth import kill
 
+from .conftest import _skip_no_scsynth
+
 supernova = pytest.param(
     "supernova",
     marks=pytest.mark.skipif(
@@ -32,12 +34,16 @@ supernova = pytest.param(
     ),
 )
 
+embedded = pytest.param("embedded", marks=_skip_no_scsynth)
+
 
 def setup_context(
     context_class: Type[AsyncServer | Server],
     *,
     async_callback: bool = False,
     name: str | None = None,
+    embedded: bool = False,
+    port: int | None = None,
 ) -> tuple[AsyncServer | Server, list[ServerLifecycleEvent]]:
     def on_event(event: ServerLifecycleEvent) -> None:
         events.append(event)
@@ -47,7 +53,10 @@ def setup_context(
         events.append(event)
 
     events: list[ServerLifecycleEvent] = []
-    context: AsyncServer | Server = context_class(name=name)
+    kwargs: dict = {}
+    if port is not None:
+        kwargs["port"] = port
+    context: AsyncServer | Server = context_class(name=name, embedded=embedded, **kwargs)
     if isinstance(context, AsyncServer):
         for event in ServerLifecycleEvent:
             context.register_lifecycle_callback(
@@ -85,7 +94,7 @@ def healthcheck_attempts(monkeypatch: MonkeyPatch) -> None:
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("executable", ["scsynth", supernova])
+@pytest.mark.parametrize("executable", ["scsynth", supernova, embedded])
 @pytest.mark.parametrize(
     "async_callback, context_class",
     [(False, AsyncServer), (True, AsyncServer), (False, Server)],
@@ -93,13 +102,17 @@ def healthcheck_attempts(monkeypatch: MonkeyPatch) -> None:
 async def test_boot_only(
     async_callback: bool,
     context_class: Type[AsyncServer | Server],
-    executable: Literal["scsynth", "supernova"],
+    executable: str,
 ) -> None:
-    context, events = setup_context(context_class, async_callback=async_callback)
+    is_embedded = executable == "embedded"
+    port = find_free_port() if is_embedded else None
+    context, events = setup_context(
+        context_class, async_callback=async_callback, embedded=is_embedded, port=port
+    )
     assert context.boot_status == BootStatus.OFFLINE
     assert not context.is_owner
     #
-    await get(context.boot(executable=executable))
+    await get(context.boot() if is_embedded else context.boot(executable=executable))
     assert context.boot_status == BootStatus.ONLINE
     assert context.is_owner
     assert events == [
@@ -115,7 +128,7 @@ async def test_boot_only(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("executable", ["scsynth", supernova])
+@pytest.mark.parametrize("executable", ["scsynth", supernova, embedded])
 @pytest.mark.parametrize(
     "async_callback, context_class",
     [(False, AsyncServer), (True, AsyncServer), (False, Server)],
@@ -123,13 +136,17 @@ async def test_boot_only(
 async def test_boot_and_quit(
     async_callback: bool,
     context_class: Type[AsyncServer | Server],
-    executable: Literal["scsynth", "supernova"],
+    executable: str,
 ) -> None:
-    context, events = setup_context(context_class, async_callback=async_callback)
+    is_embedded = executable == "embedded"
+    port = find_free_port() if is_embedded else None
+    context, events = setup_context(
+        context_class, async_callback=async_callback, embedded=is_embedded, port=port
+    )
     assert context.boot_status == BootStatus.OFFLINE
     assert not context.is_owner
     #
-    await get(context.boot(executable=executable))
+    await get(context.boot() if is_embedded else context.boot(executable=executable))
     assert context.boot_status == BootStatus.ONLINE
     assert context.is_owner
     assert events == [
@@ -163,7 +180,7 @@ async def test_boot_and_quit(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("executable", ["scsynth", supernova])
+@pytest.mark.parametrize("executable", ["scsynth", supernova, embedded])
 @pytest.mark.parametrize(
     "async_callback, context_class",
     [(False, AsyncServer), (True, AsyncServer), (False, Server)],
@@ -171,13 +188,17 @@ async def test_boot_and_quit(
 async def test_boot_and_boot(
     async_callback: bool,
     context_class: Type[AsyncServer | Server],
-    executable: Literal["scsynth", "supernova"],
+    executable: str,
 ) -> None:
-    context, events = setup_context(context_class, async_callback=async_callback)
+    is_embedded = executable == "embedded"
+    port = find_free_port() if is_embedded else None
+    context, events = setup_context(
+        context_class, async_callback=async_callback, embedded=is_embedded, port=port
+    )
     assert context.boot_status == BootStatus.OFFLINE
     assert not context.is_owner
     #
-    await get(context.boot(executable=executable))
+    await get(context.boot() if is_embedded else context.boot(executable=executable))
     assert context.boot_status == BootStatus.ONLINE
     assert context.is_owner
     assert events == [
@@ -190,7 +211,9 @@ async def test_boot_and_boot(
     ]
     #
     with pytest.raises(ServerOnline):
-        await get(context.boot(executable=executable))
+        await get(
+            context.boot() if is_embedded else context.boot(executable=executable)
+        )
     assert context.boot_status == BootStatus.ONLINE
     assert context.is_owner
     assert events == [
@@ -204,7 +227,7 @@ async def test_boot_and_boot(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("executable", ["scsynth", supernova])
+@pytest.mark.parametrize("executable", ["scsynth", supernova, embedded])
 @pytest.mark.parametrize(
     "async_callback, context_class",
     [(False, AsyncServer), (True, AsyncServer), (False, Server)],
@@ -212,13 +235,17 @@ async def test_boot_and_boot(
 async def test_boot_and_quit_and_quit(
     async_callback: bool,
     context_class: Type[AsyncServer | Server],
-    executable: Literal["scsynth", "supernova"],
+    executable: str,
 ) -> None:
-    context, events = setup_context(context_class, async_callback=async_callback)
+    is_embedded = executable == "embedded"
+    port = find_free_port() if is_embedded else None
+    context, events = setup_context(
+        context_class, async_callback=async_callback, embedded=is_embedded, port=port
+    )
     assert context.boot_status == BootStatus.OFFLINE
     assert not context.is_owner
     #
-    await get(context.boot(executable=executable))
+    await get(context.boot() if is_embedded else context.boot(executable=executable))
     assert context.boot_status == BootStatus.ONLINE
     assert context.is_owner
     assert events == [
@@ -268,7 +295,7 @@ async def test_boot_and_quit_and_quit(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("executable", ["scsynth", supernova])
+@pytest.mark.parametrize("executable", ["scsynth", supernova, embedded])
 @pytest.mark.parametrize(
     "async_callback, context_class",
     [(False, AsyncServer), (True, AsyncServer), (False, Server)],
@@ -276,13 +303,17 @@ async def test_boot_and_quit_and_quit(
 async def test_boot_and_connect(
     async_callback: bool,
     context_class: Type[AsyncServer | Server],
-    executable: Literal["scsynth", "supernova"],
+    executable: str,
 ) -> None:
-    context, events = setup_context(context_class, async_callback=async_callback)
+    is_embedded = executable == "embedded"
+    port = find_free_port() if is_embedded else None
+    context, events = setup_context(
+        context_class, async_callback=async_callback, embedded=is_embedded, port=port
+    )
     assert context.boot_status == BootStatus.OFFLINE
     assert not context.is_owner
     #
-    await get(context.boot(executable=executable))
+    await get(context.boot() if is_embedded else context.boot(executable=executable))
     assert context.boot_status == BootStatus.ONLINE
     assert context.is_owner
     assert events == [
@@ -309,7 +340,7 @@ async def test_boot_and_connect(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("executable", ["scsynth", supernova])
+@pytest.mark.parametrize("executable", ["scsynth", supernova, embedded])
 @pytest.mark.parametrize(
     "async_callback, context_class",
     [(False, AsyncServer), (True, AsyncServer), (False, Server)],
@@ -317,18 +348,32 @@ async def test_boot_and_connect(
 async def test_boot_a_and_boot_b_cannot_boot(
     async_callback: bool,
     context_class: Type[AsyncServer | Server],
-    executable: Literal["scsynth", "supernova"],
+    executable: str,
 ) -> None:
+    is_embedded = executable == "embedded"
+    port = find_free_port() if is_embedded else None
     context_a, events_a = setup_context(
-        context_class, async_callback=async_callback, name="one"
+        context_class,
+        async_callback=async_callback,
+        name="one",
+        embedded=is_embedded,
+        port=port,
     )
     context_b, events_b = setup_context(
-        context_class, async_callback=async_callback, name="two"
+        context_class,
+        async_callback=async_callback,
+        name="two",
+        embedded=is_embedded,
+        port=port,
     )
     assert context_a.boot_status == BootStatus.OFFLINE and not context_a.is_owner
     assert context_b.boot_status == BootStatus.OFFLINE and not context_b.is_owner
     #
-    await get(context_a.boot(maximum_logins=4, executable=executable))
+    await get(
+        context_a.boot(maximum_logins=4)
+        if is_embedded
+        else context_a.boot(maximum_logins=4, executable=executable)
+    )
     assert context_a.boot_status == BootStatus.ONLINE and context_a.is_owner
     assert context_b.boot_status == BootStatus.OFFLINE and not context_b.is_owner
     assert events_a == [
@@ -342,7 +387,11 @@ async def test_boot_a_and_boot_b_cannot_boot(
     assert events_b == []
     #
     with pytest.raises(ServerCannotBoot):
-        await get(context_b.boot(maximum_logins=4, executable=executable))
+        await get(
+            context_b.boot(maximum_logins=4)
+            if is_embedded
+            else context_b.boot(maximum_logins=4, executable=executable)
+        )
     assert context_a.boot_status == BootStatus.ONLINE and context_a.is_owner
     assert context_b.boot_status == BootStatus.OFFLINE and not context_b.is_owner
     assert events_a == [
@@ -359,9 +408,8 @@ async def test_boot_a_and_boot_b_cannot_boot(
     ]
 
 
-# scsynth only
 @pytest.mark.asyncio
-@pytest.mark.parametrize("executable", ["scsynth", supernova])
+@pytest.mark.parametrize("executable", ["scsynth", supernova, embedded])
 @pytest.mark.parametrize(
     "async_callback, context_class",
     [(False, AsyncServer), (True, AsyncServer), (False, Server)],
@@ -369,18 +417,32 @@ async def test_boot_a_and_boot_b_cannot_boot(
 async def test_boot_a_and_connect_b_too_many_clients(
     async_callback: bool,
     context_class: Type[AsyncServer | Server],
-    executable: Literal["scsynth", "supernova"],
+    executable: str,
 ) -> None:
+    is_embedded = executable == "embedded"
+    port = find_free_port() if is_embedded else None
     context_a, events_a = setup_context(
-        context_class, async_callback=async_callback, name="one"
+        context_class,
+        async_callback=async_callback,
+        name="one",
+        embedded=is_embedded,
+        port=port,
     )
     context_b, events_b = setup_context(
-        context_class, async_callback=async_callback, name="two"
+        context_class,
+        async_callback=async_callback,
+        name="two",
+        embedded=is_embedded,
+        port=port,
     )
     assert context_a.boot_status == BootStatus.OFFLINE and not context_a.is_owner
     assert context_b.boot_status == BootStatus.OFFLINE and not context_b.is_owner
     #
-    await get(context_a.boot(maximum_logins=1))
+    await get(
+        context_a.boot(maximum_logins=1)
+        if is_embedded
+        else context_a.boot(maximum_logins=1, executable=executable)
+    )
     assert context_a.boot_status == BootStatus.ONLINE and context_a.is_owner
     assert context_b.boot_status == BootStatus.OFFLINE and not context_b.is_owner
     assert events_a == [
@@ -424,20 +486,34 @@ async def test_boot_a_and_connect_b_too_many_clients(
 async def test_boot_a_and_connect_b_and_quit_a(
     async_callback: bool,
     context_class: Type[AsyncServer | Server],
-    executable: Literal["scsynth", "supernova"],
+    executable: str,
 ) -> None:
+    is_embedded = executable == "embedded"
+    port = find_free_port() if is_embedded else None
     logger.warning("START")
     context_a, events_a = setup_context(
-        context_class, async_callback=async_callback, name="one"
+        context_class,
+        async_callback=async_callback,
+        name="one",
+        embedded=is_embedded,
+        port=port,
     )
     context_b, events_b = setup_context(
-        context_class, async_callback=async_callback, name="two"
+        context_class,
+        async_callback=async_callback,
+        name="two",
+        embedded=is_embedded,
+        port=port,
     )
     assert context_a.boot_status == BootStatus.OFFLINE and not context_a.is_owner
     assert context_b.boot_status == BootStatus.OFFLINE and not context_b.is_owner
     #
     logger.warning("BOOT A")
-    await get(context_a.boot(maximum_logins=2, executable=executable))
+    await get(
+        context_a.boot(maximum_logins=2)
+        if is_embedded
+        else context_a.boot(maximum_logins=2, executable=executable)
+    )
     assert events_a == [
         ServerLifecycleEvent.BOOTING,
         ServerLifecycleEvent.PROCESS_BOOTED,
@@ -527,18 +603,32 @@ async def test_boot_a_and_connect_b_and_quit_a(
 async def test_boot_a_and_connect_b_and_disconnect_b(
     async_callback: bool,
     context_class: Type[AsyncServer | Server],
-    executable: Literal["scsynth", "supernova"],
+    executable: str,
 ) -> None:
+    is_embedded = executable == "embedded"
+    port = find_free_port() if is_embedded else None
     context_a, events_a = setup_context(
-        context_class, async_callback=async_callback, name="one"
+        context_class,
+        async_callback=async_callback,
+        name="one",
+        embedded=is_embedded,
+        port=port,
     )
     context_b, events_b = setup_context(
-        context_class, async_callback=async_callback, name="two"
+        context_class,
+        async_callback=async_callback,
+        name="two",
+        embedded=is_embedded,
+        port=port,
     )
     assert context_a.boot_status == BootStatus.OFFLINE and not context_a.is_owner
     assert context_b.boot_status == BootStatus.OFFLINE and not context_b.is_owner
     #
-    await get(context_a.boot(maximum_logins=2, executable=executable))
+    await get(
+        context_a.boot(maximum_logins=2)
+        if is_embedded
+        else context_a.boot(maximum_logins=2, executable=executable)
+    )
     await get(context_b.connect())
     assert context_a.boot_status == BootStatus.ONLINE and context_a.is_owner
     assert context_b.boot_status == BootStatus.ONLINE and not context_b.is_owner
@@ -586,18 +676,32 @@ async def test_boot_a_and_connect_b_and_disconnect_b(
 async def test_boot_a_and_connect_b_and_disconnect_a(
     async_callback: bool,
     context_class: Type[AsyncServer | Server],
-    executable: Literal["scsynth", "supernova"],
+    executable: str,
 ) -> None:
+    is_embedded = executable == "embedded"
+    port = find_free_port() if is_embedded else None
     context_a, events_a = setup_context(
-        context_class, async_callback=async_callback, name="one"
+        context_class,
+        async_callback=async_callback,
+        name="one",
+        embedded=is_embedded,
+        port=port,
     )
     context_b, events_b = setup_context(
-        context_class, async_callback=async_callback, name="two"
+        context_class,
+        async_callback=async_callback,
+        name="two",
+        embedded=is_embedded,
+        port=port,
     )
     assert context_a.boot_status == BootStatus.OFFLINE and not context_a.is_owner
     assert context_b.boot_status == BootStatus.OFFLINE and not context_b.is_owner
     #
-    await get(context_a.boot(maximum_logins=2, executable=executable))
+    await get(
+        context_a.boot(maximum_logins=2)
+        if is_embedded
+        else context_a.boot(maximum_logins=2, executable=executable)
+    )
     await get(context_b.connect())
     assert context_a.boot_status == BootStatus.ONLINE and context_a.is_owner
     assert context_b.boot_status == BootStatus.ONLINE and not context_b.is_owner
@@ -643,16 +747,30 @@ async def test_boot_a_and_connect_b_and_disconnect_a(
 async def test_boot_a_and_connect_b_and_quit_b(
     async_callback, context_class, executable
 ) -> None:
+    is_embedded = executable == "embedded"
+    port = find_free_port() if is_embedded else None
     context_a, events_a = setup_context(
-        context_class, async_callback=async_callback, name="one"
+        context_class,
+        async_callback=async_callback,
+        name="one",
+        embedded=is_embedded,
+        port=port,
     )
     context_b, events_b = setup_context(
-        context_class, async_callback=async_callback, name="two"
+        context_class,
+        async_callback=async_callback,
+        name="two",
+        embedded=is_embedded,
+        port=port,
     )
     assert context_a.boot_status == BootStatus.OFFLINE and not context_a.is_owner
     assert context_b.boot_status == BootStatus.OFFLINE and not context_b.is_owner
     #
-    await get(context_a.boot(maximum_logins=2, executable=executable))
+    await get(
+        context_a.boot(maximum_logins=2)
+        if is_embedded
+        else context_a.boot(maximum_logins=2, executable=executable)
+    )
     await get(context_b.connect())
     assert context_a.boot_status == BootStatus.ONLINE and context_a.is_owner
     assert context_b.boot_status == BootStatus.ONLINE and not context_b.is_owner
@@ -698,20 +816,34 @@ async def test_boot_a_and_connect_b_and_quit_b(
 async def test_boot_a_and_connect_b_and_force_quit_b(
     async_callback: bool,
     context_class: Type[AsyncServer | Server],
-    executable: Literal["scsynth", "supernova"],
+    executable: str,
 ) -> None:
+    is_embedded = executable == "embedded"
+    port = find_free_port() if is_embedded else None
     logger.warning("START")
     context_a, events_a = setup_context(
-        context_class, async_callback=async_callback, name="one"
+        context_class,
+        async_callback=async_callback,
+        name="one",
+        embedded=is_embedded,
+        port=port,
     )
     context_b, events_b = setup_context(
-        context_class, async_callback=async_callback, name="two"
+        context_class,
+        async_callback=async_callback,
+        name="two",
+        embedded=is_embedded,
+        port=port,
     )
     assert context_a.boot_status == BootStatus.OFFLINE and not context_a.is_owner
     assert context_b.boot_status == BootStatus.OFFLINE and not context_b.is_owner
     #
     logger.warning("BOOT A")
-    await get(context_a.boot(maximum_logins=2, executable=executable))
+    await get(
+        context_a.boot(maximum_logins=2)
+        if is_embedded
+        else context_a.boot(maximum_logins=2, executable=executable)
+    )
     assert events_a == [
         ServerLifecycleEvent.BOOTING,
         ServerLifecycleEvent.PROCESS_BOOTED,
@@ -777,12 +909,14 @@ async def test_boot_a_and_connect_b_and_force_quit_b(
 @pytest.mark.parametrize("context_class", [AsyncServer, Server])
 async def test_boot_reboot_sticky_options(
     context_class: Type[AsyncServer | Server],
-    executable: Literal["scsynth", "supernova"],
+    executable: str,
 ) -> None:
     """
     Options persist across booting and quitting.
     """
-    context, _ = setup_context(context_class)
+    is_embedded = executable == "embedded"
+    port = find_free_port() if is_embedded else None
+    context, _ = setup_context(context_class, embedded=is_embedded, port=port)
     maximum_node_count = random.randint(1024, 2048)
     await get(
         context.boot(maximum_node_count=maximum_node_count, port=find_free_port())

@@ -10,6 +10,8 @@ from supriya import AsyncServer, OscBundle, OscMessage, Server, SynthDef, defaul
 from supriya.contexts.responses import NodeInfo
 from supriya.enums import NodeAction
 
+from .conftest import SERVER_PARAMS
+
 
 async def get(x):
     if asyncio.iscoroutine(x):
@@ -22,9 +24,10 @@ def use_caplog(caplog):
     caplog.set_level(logging.INFO)
 
 
-@pytest_asyncio.fixture(autouse=True, params=[AsyncServer, Server])
+@pytest_asyncio.fixture(autouse=True, params=SERVER_PARAMS)
 async def context(request) -> AsyncGenerator[AsyncServer | Server, None]:
-    context = request.param()
+    cls, embedded = request.param
+    context = cls(embedded=embedded)
     await get(context.boot())
     context.add_synthdefs(default)
     await get(context.sync())

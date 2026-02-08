@@ -55,6 +55,13 @@ struct WorldStrings {
 };
 
 // ---------------------------------------------------------------------------
+// No-op reply function for World_SendPacket (avoids null dereference when
+// scsynth internally replies to commands like /quit or /notify).
+// ---------------------------------------------------------------------------
+
+static void noop_reply_func(struct ReplyAddress*, char*, int) {}
+
+// ---------------------------------------------------------------------------
 // Module functions
 // ---------------------------------------------------------------------------
 
@@ -232,7 +239,7 @@ static bool py_world_send_packet(nb::capsule& world_cap, nb::bytes data) {
     bool result;
     {
         nb::gil_scoped_release release;
-        result = World_SendPacket(world, size, buf, nullptr);
+        result = World_SendPacket(world, size, buf, noop_reply_func);
     }
     return result;
 }
@@ -245,7 +252,7 @@ NB_MODULE(_scsynth, m) {
     m.doc() = "Embedded SuperCollider synthesis server (libscsynth)";
 
     m.def("set_print_func", &py_set_print_func,
-          nb::arg("func"),
+          nb::arg("func").none(),
           "Set the print function for scsynth output. Pass None to clear.");
 
     m.def("world_new", &py_world_new,

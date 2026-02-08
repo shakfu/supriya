@@ -25,6 +25,8 @@ from supriya.contexts.responses import StatusInfo, VersionInfo
 from supriya.exceptions import ServerOffline
 from supriya.ugens import SYSTEM_SYNTHDEFS
 
+from .conftest import SERVER_PARAMS
+
 
 async def get(x):
     if asyncio.iscoroutine(x):
@@ -37,9 +39,10 @@ def use_caplog(caplog) -> None:
     caplog.set_level(logging.INFO)
 
 
-@pytest_asyncio.fixture(autouse=True, params=[AsyncServer, Server])
+@pytest_asyncio.fixture(autouse=True, params=SERVER_PARAMS)
 async def context(request) -> AsyncGenerator[AsyncServer | Server, None]:
-    context = request.param()
+    cls, embedded = request.param
+    context = cls(embedded=embedded)
     await get(context.boot())
     context.add_synthdefs(default)
     await get(context.sync())

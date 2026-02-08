@@ -1,7 +1,28 @@
 import random
 
+import pytest
+
+import supriya
 from supriya import Server
 from supriya.contexts.shm import ServerSHM
+
+from .conftest import _skip_no_scsynth
+
+
+@pytest.fixture(
+    params=[
+        pytest.param(False, id="subprocess"),
+        pytest.param(True, id="embedded", marks=_skip_no_scsynth),
+    ]
+)
+def server(request):
+    server = supriya.Server(embedded=request.param)
+    server.set_latency(0.0)
+    server.boot()
+    server.add_synthdefs(supriya.default)
+    server.sync()
+    yield server
+    server.quit()
 
 
 def test_shared_memory(server: Server) -> None:
