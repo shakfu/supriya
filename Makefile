@@ -1,4 +1,4 @@
-.PHONY: build build-scsynth clean docs docs-clean help install-scsynth lint mypy pytest reformat test test-scsynth
+.PHONY: build build-scsynth clean demos docs docs-clean help install-scsynth lint mypy pytest reformat test test-scsynth
 .DEFAULT_GOAL := help
 
 project = supriya
@@ -27,6 +27,13 @@ install-scsynth: ## Install editable with embedded libscsynth
 		-C cmake.define.SUPRIYA_EMBED_SCSYNTH=ON \
 		-C cmake.define.SC_SOURCE_DIR=$(SC_SOURCE_DIR) \
 		-C cmake.define.SC_BUILD_DIR=$(SC_BUILD_DIR)
+
+demos: ## Run all demo scripts sequentially
+	@for f in demos/0*.py demos/1*.py; do \
+		echo "=== $$f ==="; \
+		SC_PLUGIN_PATH=$(SC_BUILD_DIR)/server/plugins uv run python "$$f"; \
+		echo; \
+	done
 
 clean: ## Clean-out transitory files
 	find . -name '*.pyc' | xargs rm

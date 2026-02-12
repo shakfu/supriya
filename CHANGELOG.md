@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `demos/` directory with 10 standalone scripts showcasing embedded libscsynth synthesis, from basic sine waves to generative composition
+- `make demos` target to run all demo scripts sequentially
 - Embedded scsynth server support via `_scsynth` nanobind extension wrapping libscsynth
 - `EmbeddedProcessProtocol` in `scsynth.py` for in-process World lifecycle management
 - `_active_world` class-level guard preventing multiple concurrent embedded Worlds (SC limitation)
