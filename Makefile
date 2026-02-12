@@ -61,10 +61,10 @@ pytest: ## Unit test via pytest
 	uv run pytest ${testPaths} --cov=supriya
 
 test: ## Run tests via uv
-	uv run pytest tests/
+	SC_PLUGIN_PATH=$(SC_BUILD_DIR)/server/plugins uv run pytest tests/
 
 test-scsynth: ## Run tests using venv directly (after make install-scsynth)
-	.venv/bin/python -m pytest tests/ \
+	SC_PLUGIN_PATH=$(SC_BUILD_DIR)/server/plugins .venv/bin/python -m pytest tests/ \
 		--ignore=tests/book \
 		--ignore=tests/contexts/test_Scope.py \
 		--ignore=tests/contexts/test_Server_buffers.py \

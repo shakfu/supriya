@@ -811,14 +811,23 @@ class EmbeddedProcessProtocol(ProcessProtocol):
 
         EmbeddedProcessProtocol._active_world = True
 
-        # Route scsynth output to Python logging (set after world_new to
-        # avoid GIL/logging deadlock with pytest's caplog handler during init)
+        # Route scsynth output to Python logging and captures (set after
+        # world_new to avoid GIL/logging deadlock with pytest's caplog
+        # handler during init).  SC's printf calls are fragmented (indent,
+        # content, newline arrive as separate calls), so buffer and split
+        # on newlines just like _handle_data_received does.
         label = self.name or hex(id(self))
-        set_print_func(
-            lambda text, _label=label: logger.info(
-                f"[scsynth/{_label}] {text.rstrip()}"
-            )
-        )
+
+        def _on_print(text: str, _label: str = label) -> None:
+            self.buffer_ += text
+            if "\n" in self.buffer_:
+                complete, _, self.buffer_ = self.buffer_.rpartition("\n")
+                for line in complete.splitlines():
+                    logger.info(f"[scsynth/{_label}] {line}")
+                    for capture in self.captures:
+                        capture.capture(line)
+
+        set_print_func(_on_print)
 
         # Boot succeeded
         self.status = BootStatus.ONLINE

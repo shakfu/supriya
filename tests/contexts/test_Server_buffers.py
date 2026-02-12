@@ -31,7 +31,7 @@ async def get(x):
 
 @pytest.fixture
 def audio_paths() -> list[Path]:
-    return sorted((Path(supriya.__path__[0]) / "samples").glob("bird*.wav"))
+    return sorted((Path(supriya.__file__).parent / "samples").glob("bird*.wav"))
 
 
 @pytest.fixture(autouse=True)
@@ -72,7 +72,7 @@ async def test_Buffer_allocated(context: AsyncServer | Server) -> None:
     assert not buffer_a.allocated
     assert not buffer_b.allocated
     # allocation state is stored in the context, not the node
-    await get(context.boot())
+    await get(context.boot(port=find_free_port()))
     assert not buffer_a.allocated
     assert not buffer_b.allocated
 

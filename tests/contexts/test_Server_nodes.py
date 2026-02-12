@@ -111,7 +111,7 @@ async def test_Node_allocated(context: AsyncServer | Server) -> None:
     await get(context.quit())
     assert not synth.allocated
     # allocation state is stored in the context, not the node
-    await get(context.boot())
+    await get(context.boot(port=find_free_port()))
     assert not synth.allocated
 
 

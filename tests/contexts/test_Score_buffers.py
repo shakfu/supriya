@@ -10,7 +10,7 @@ from supriya.exceptions import MomentClosed
 
 @pytest.fixture
 def audio_paths() -> list[Path]:
-    return sorted((Path(supriya.__path__[0]) / "samples").glob("bird*.wav"))
+    return sorted((Path(supriya.__file__).parent / "samples").glob("bird*.wav"))
 
 
 @pytest.fixture(autouse=True)
