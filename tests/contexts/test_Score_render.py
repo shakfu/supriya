@@ -6,6 +6,10 @@ import pytest
 
 from supriya import Score, default, output_path, render
 
+from ..conftest import _skip_no_scsynth_exe
+
+pytestmark = _skip_no_scsynth_exe
+
 # 3.13 would exit with 0
 # develop as of 2025/02/11 exits with -11 (why??)
 EXPECTED_EXIT_CODES_NIX = (0, -11)

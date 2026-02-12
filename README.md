@@ -11,7 +11,8 @@
 Supriya lets you:
 
 - Boot and communicate with SuperCollider's synthesis engine
-  in [realtime](http://supriya-project.github.io/supriya/api/supriya/contexts/realtime.html).
+  in [realtime](http://supriya-project.github.io/supriya/api/supriya/contexts/realtime.html),
+  either as a subprocess or **embedded in-process** via statically linked libscsynth.
 
 - Explore
   [nonrealtime](http://supriya-project.github.io/supriya/api/supriya/contexts/nonrealtime.html)
@@ -63,6 +64,11 @@ Start your Python interpreter and import Supriya:
 Boot the SuperCollider server:
 
     >>> server = supriya.Server().boot()
+
+Or boot with the embedded engine (no external scsynth process required, requires
+a build with `SUPRIYA_EMBED_SCSYNTH=ON`):
+
+    >>> server = supriya.Server(embedded=True).boot()
 
 ### 4. Build a SynthDef
 

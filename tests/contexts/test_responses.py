@@ -1,6 +1,11 @@
+import pytest
 from uqbar.strings import normalize
 
 from supriya import Server, default
+
+from ..conftest import _skip_no_scsynth_exe
+
+pytestmark = _skip_no_scsynth_exe
 
 
 def test_QueryTreeGroup_annotate() -> None:

@@ -20,6 +20,8 @@ from supriya import (
 from supriya.clocks import AsyncOfflineClock, OfflineClock
 from supriya.contexts.requests import NewGroup
 from supriya.osc import format_messages
+
+from ..conftest import _skip_no_scsynth_exe
 from supriya.patterns import (
     BusPattern,
     Event,
@@ -395,6 +397,7 @@ from supriya.ugens.system import default, system_link_audio_1
         ),
     ],
 )
+@_skip_no_scsynth_exe
 def test_context_calls(
     pattern,
     until: float | None,
@@ -418,6 +421,7 @@ def test_context_calls(
     assert spy.mock_calls == expected_mock_calls
 
 
+@_skip_no_scsynth_exe
 def test_callback(mocker: MockerFixture) -> None:
     def callback(player, context, event, priority):
         callback_calls.append(
@@ -442,6 +446,7 @@ def test_callback(mocker: MockerFixture) -> None:
     ]
 
 
+@_skip_no_scsynth_exe
 @pytest.mark.asyncio
 async def test_callback_async(mocker) -> None:
     def callback(player, context, event, priority):

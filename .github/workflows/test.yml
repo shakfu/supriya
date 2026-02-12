@@ -12,7 +12,7 @@ on:
 env:
   PYNPUT_BACKEND: dummy
   SC_ORIGIN: https://github.com/supercollider/supercollider.git
-  SC_BRANCH: develop
+  SC_BRANCH: Version-3.14.1
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

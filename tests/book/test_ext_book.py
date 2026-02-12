@@ -7,6 +7,8 @@ import shutil
 import pytest
 import uqbar.io
 
+pytest.importorskip("librosa")
+
 
 @pytest.fixture
 def rm_dirs(app):

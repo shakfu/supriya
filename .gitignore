@@ -31,8 +31,9 @@ nosetests.xml
 .pytest_cache/
 prof/
 htmlcov/
-.mypy_cache/
+.*_cache/
 mypycov/
+.venv
 
 # Translations
 *.mo
@@ -47,3 +48,10 @@ mypycov/
 # Misc.
 .DS_Store
 .ipynb_checkpoints/
+
+# agents
+.claude
+CLAUDE.md
+AGENTS.md
+GEMINI.md
+

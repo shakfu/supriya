@@ -5,6 +5,7 @@ import platform
 import pytest
 from uqbar.strings import normalize
 
+from ..conftest import _skip_no_sclang_exe
 from supriya.ugens import (
     FFT,
     IFFT,
@@ -193,6 +194,7 @@ def test_02_ugens(py_synthdef_02: SynthDef) -> None:
     )
 
 
+@_skip_no_sclang_exe
 @pytest.mark.skipif(platform.system() == "Windows", reason="hangs on Windows")
 @pytest.mark.skipif(
     platform.system() == "Darwin" and os.environ.get("CI") == "true",

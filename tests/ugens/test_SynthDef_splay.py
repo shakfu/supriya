@@ -14,6 +14,10 @@ from supriya.ugens import (
     decompile_synthdefs,
 )
 
+from ..conftest import _skip_no_scsynth_exe
+
+pytestmark = _skip_no_scsynth_exe
+
 
 @pytest.mark.skipif(platform.system() == "Windows", reason="hangs on Windows")
 @pytest.mark.skipif(

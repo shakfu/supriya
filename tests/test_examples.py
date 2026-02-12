@@ -13,6 +13,10 @@ from pytest_lazy_fixtures import lf
 
 import supriya
 
+from .conftest import _skip_no_scsynth_exe
+
+pytestmark = _skip_no_scsynth_exe
+
 
 async def get(x):
     # if x is awaitable, await it

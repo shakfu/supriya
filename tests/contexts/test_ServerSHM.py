@@ -7,12 +7,20 @@ from supriya import Server
 from supriya.contexts.shm import ServerSHM
 
 from .conftest import _skip_no_scsynth
+from ..conftest import _skip_no_scsynth_exe
 
 
 @pytest.fixture(
     params=[
-        pytest.param(False, id="subprocess"),
-        pytest.param(True, id="embedded", marks=_skip_no_scsynth),
+        pytest.param(False, id="subprocess", marks=_skip_no_scsynth_exe),
+        pytest.param(
+            True,
+            id="embedded",
+            marks=[
+                _skip_no_scsynth,
+                pytest.mark.xfail(reason="SHM not supported in embedded mode"),
+            ],
+        ),
     ]
 )
 def server(request):

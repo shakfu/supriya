@@ -6,6 +6,8 @@ from supriya import AsyncServer, Server
 from supriya.enums import ParameterRate
 from supriya.ugens import Out, Parameter, SinOsc, SynthDef, SynthDefBuilder
 
+from ..conftest import _skip_no_scsynth_exe, _skip_no_supernova_exe  # noqa: F401
+
 try:
     import supriya._scsynth  # noqa: F401
 
@@ -18,8 +20,8 @@ _skip_no_scsynth = pytest.mark.skipif(
 )
 
 SERVER_PARAMS = [
-    pytest.param((AsyncServer, False), id="AsyncServer"),
-    pytest.param((Server, False), id="Server"),
+    pytest.param((AsyncServer, False), id="AsyncServer", marks=_skip_no_scsynth_exe),
+    pytest.param((Server, False), id="Server", marks=_skip_no_scsynth_exe),
     pytest.param(
         (AsyncServer, True), id="AsyncServer-embedded", marks=_skip_no_scsynth
     ),

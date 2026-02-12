@@ -23,6 +23,7 @@ from supriya import (
 )
 from supriya.contexts.responses import StatusInfo, VersionInfo
 from supriya.exceptions import ServerOffline
+from supriya.osc import find_free_port
 from supriya.ugens import SYSTEM_SYNTHDEFS
 
 from .conftest import SERVER_PARAMS
@@ -43,10 +44,11 @@ def use_caplog(caplog) -> None:
 async def context(request) -> AsyncGenerator[AsyncServer | Server, None]:
     cls, embedded = request.param
     context = cls(embedded=embedded)
-    await get(context.boot())
+    await get(context.boot(port=find_free_port()))
     context.add_synthdefs(default)
     await get(context.sync())
     yield context
+    await get(context.quit())
 
 
 @pytest.mark.asyncio

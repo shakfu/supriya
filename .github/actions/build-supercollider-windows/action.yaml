@@ -23,6 +23,12 @@ runs:
           /tmp/supercollider
       shell: bash
 
+    - name: Apply reentrant-world patch
+      run: |
+        cd /tmp/supercollider
+        git apply ${{ github.workspace }}/patches/sc-reentrant-world.patch
+      shell: bash
+
     - name: Cache current date
       id: current-date
       run: |

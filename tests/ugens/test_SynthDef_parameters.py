@@ -5,6 +5,7 @@ import platform
 import pytest
 from uqbar.strings import normalize
 
+from ..conftest import _skip_no_sclang_exe
 from supriya.enums import ParameterRate
 from supriya.ugens import (
     Decay2,
@@ -38,6 +39,7 @@ def test_parameters_01_parameters(py_synthdef_01: SynthDef) -> None:
     ]
 
 
+@_skip_no_sclang_exe
 @pytest.mark.skipif(platform.system() == "Windows", reason="hangs on Windows")
 @pytest.mark.skipif(
     platform.system() == "Darwin" and os.environ.get("CI") == "true",
@@ -125,6 +127,7 @@ def test_parameters_02_parameters(py_synthdef_02: SynthDef) -> None:
     ]
 
 
+@_skip_no_sclang_exe
 @pytest.mark.skipif(platform.system() == "Windows", reason="hangs on Windows")
 @pytest.mark.skipif(
     platform.system() == "Darwin" and os.environ.get("CI") == "true",
@@ -227,6 +230,7 @@ def test_parameters_03_parameters(py_synthdef_03: SynthDef) -> None:
     ]
 
 
+@_skip_no_sclang_exe
 @pytest.mark.skipif(platform.system() == "Windows", reason="hangs on Windows")
 @pytest.mark.skipif(
     platform.system() == "Darwin" and os.environ.get("CI") == "true",
@@ -357,6 +361,7 @@ def test_parameters_05_parameters(py_synthdef_05: SynthDef) -> None:
     ]
 
 
+@_skip_no_sclang_exe
 @pytest.mark.skipif(platform.system() == "Windows", reason="hangs on Windows")
 @pytest.mark.skipif(
     platform.system() == "Darwin" and os.environ.get("CI") == "true",
@@ -496,6 +501,7 @@ def test_parameters_06_parameters(py_synthdef_06: SynthDef) -> None:
     ]
 
 
+@_skip_no_sclang_exe
 @pytest.mark.skipif(platform.system() == "Windows", reason="hangs on Windows")
 @pytest.mark.skipif(
     platform.system() == "Darwin" and os.environ.get("CI") == "true",

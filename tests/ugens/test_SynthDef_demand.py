@@ -4,6 +4,7 @@ import platform
 
 import pytest
 
+from ..conftest import _skip_no_sclang_exe
 from supriya.ugens import (
     Demand,
     Dseries,
@@ -102,6 +103,7 @@ def test_demand_supriya_vs_bytes(py_synthdef: SynthDef) -> None:
     assert py_compiled_synthdef == test_compiled_synthdef
 
 
+@_skip_no_sclang_exe
 @pytest.mark.skipif(platform.system() == "Windows", reason="hangs on Windows")
 @pytest.mark.skipif(
     platform.system() == "Darwin" and os.environ.get("CI") == "true",

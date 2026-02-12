@@ -7,6 +7,10 @@ from uqbar.strings import normalize
 from supriya import Bus, BusGroup, Server, SynthDef, SynthDefBuilder
 from supriya.ugens import Out, SinOsc
 
+from ..conftest import _skip_no_scsynth_exe
+
+pytestmark = _skip_no_scsynth_exe
+
 
 @pytest.fixture
 def context(synthdef: SynthDef) -> Generator[Server, None, None]:

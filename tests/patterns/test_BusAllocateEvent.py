@@ -7,6 +7,8 @@ from supriya.contexts import BusGroup, ContextObject, Server
 from supriya.enums import CalculationRate
 from supriya.patterns.events import BusAllocateEvent, Event, Priority
 
+from ..conftest import _skip_no_scsynth_exe
+
 id_ = uuid4()
 
 
@@ -44,6 +46,7 @@ def test_expand(
     assert actual == expected
 
 
+@_skip_no_scsynth_exe
 def test_perform() -> None:
     context = Server().boot()
     spy = Mock(wraps=context)

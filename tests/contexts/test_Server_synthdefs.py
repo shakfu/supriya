@@ -10,6 +10,7 @@ from supriya import AsyncServer, OscBundle, OscMessage, Server
 from supriya.exceptions import MomentClosed
 from supriya.ugens import Out, SinOsc, SynthDef, SynthDefBuilder, compile_synthdefs
 
+from supriya.osc import find_free_port
 from .conftest import SERVER_PARAMS
 
 
@@ -28,8 +29,9 @@ def use_caplog(caplog) -> None:
 async def context(request) -> AsyncGenerator[AsyncServer | Server, None]:
     cls, embedded = request.param
     context = cls(embedded=embedded)
-    await get(context.boot())
+    await get(context.boot(port=find_free_port()))
     yield context
+    await get(context.quit())
 
 
 @pytest.fixture

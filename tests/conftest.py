@@ -1,4 +1,5 @@
 import asyncio
+import shutil
 
 import pytest
 import pytest_asyncio
@@ -9,6 +10,34 @@ from supriya.contexts.realtime import BaseServer
 
 
 pytest_plugins = ["sphinx.testing.fixtures"]
+
+try:
+    scsynth.find()
+    _has_scsynth_exe = True
+except RuntimeError:
+    _has_scsynth_exe = False
+
+_has_supernova_exe = shutil.which("supernova") is not None
+
+try:
+    from supriya import sclang
+
+    sclang.find()
+    _has_sclang_exe = True
+except RuntimeError:
+    _has_sclang_exe = False
+
+_skip_no_scsynth_exe = pytest.mark.skipif(
+    not _has_scsynth_exe, reason="scsynth executable not found"
+)
+
+_skip_no_supernova_exe = pytest.mark.skipif(
+    not _has_supernova_exe, reason="supernova executable not found"
+)
+
+_skip_no_sclang_exe = pytest.mark.skipif(
+    not _has_sclang_exe, reason="sclang executable not found"
+)
 
 
 @pytest.fixture

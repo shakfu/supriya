@@ -16,6 +16,7 @@ from supriya.osc import (
     find_free_port,
 )
 from supriya.scsynth import AsyncProcessProtocol, Options, ThreadedProcessProtocol
+from .conftest import _skip_no_scsynth_exe
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +78,7 @@ def test_new_ntp_era() -> None:
     assert datagram.hex() == "0000000100000000"
 
 
+@_skip_no_scsynth_exe
 @pytest.mark.parametrize(
     "osc_protocol_class, process_protocol_class",
     [

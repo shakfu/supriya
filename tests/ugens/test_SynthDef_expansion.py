@@ -4,6 +4,7 @@ import platform
 import pytest
 from uqbar.strings import normalize
 
+from ..conftest import _skip_no_sclang_exe
 from supriya.ugens import SuperColliderSynthDef, decompile_synthdef
 
 
@@ -21,6 +22,7 @@ def sc_synthdef_expansion() -> SuperColliderSynthDef:
     )
 
 
+@_skip_no_sclang_exe
 @pytest.mark.skipif(platform.system() == "Windows", reason="hangs on Windows")
 @pytest.mark.skipif(
     platform.system() == "Darwin" and os.environ.get("CI") == "true",

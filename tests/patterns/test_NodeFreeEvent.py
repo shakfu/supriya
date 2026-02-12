@@ -6,6 +6,8 @@ import pytest
 from supriya.contexts import ContextObject, Server
 from supriya.patterns.events import Event, GroupAllocateEvent, NodeFreeEvent, Priority
 
+from ..conftest import _skip_no_scsynth_exe
+
 id_ = uuid4()
 
 
@@ -20,6 +22,7 @@ def test_expand(
     assert actual == expected
 
 
+@_skip_no_scsynth_exe
 def test_perform() -> None:
     context = Server().boot()
     proxy_mapping: dict[UUID | tuple[UUID, int], ContextObject] = {}

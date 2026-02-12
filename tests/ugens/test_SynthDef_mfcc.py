@@ -5,6 +5,7 @@ import platform
 import pytest
 from uqbar.strings import normalize
 
+from ..conftest import _skip_no_sclang_exe
 from supriya.ugens import (
     FFT,
     MFCC,
@@ -41,6 +42,7 @@ def sc_synthdef_mfcc() -> SuperColliderSynthDef:
     )
 
 
+@_skip_no_sclang_exe
 @pytest.mark.skipif(platform.system() == "Windows", reason="hangs on Windows")
 @pytest.mark.skipif(
     platform.system() == "Darwin" and os.environ.get("CI") == "true",
@@ -64,6 +66,7 @@ def test_ugens(
     assert py_ugens == sc_ugens
 
 
+@_skip_no_sclang_exe
 @pytest.mark.skipif(platform.system() == "Windows", reason="hangs on Windows")
 @pytest.mark.skipif(
     platform.system() == "Darwin" and os.environ.get("CI") == "true",
@@ -119,6 +122,7 @@ def test_format(
     assert py_format == sc_format
 
 
+@_skip_no_sclang_exe
 @pytest.mark.skipif(platform.system() == "Windows", reason="hangs on Windows")
 @pytest.mark.skipif(
     platform.system() == "Darwin" and os.environ.get("CI") == "true",

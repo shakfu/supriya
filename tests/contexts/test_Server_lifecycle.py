@@ -25,13 +25,18 @@ from supriya.exceptions import (
 )
 from supriya.scsynth import kill
 
-from .conftest import _skip_no_scsynth
+from .conftest import _skip_no_scsynth, _skip_no_scsynth_exe, _skip_no_supernova_exe
+
+scsynth = pytest.param("scsynth", marks=_skip_no_scsynth_exe)
 
 supernova = pytest.param(
     "supernova",
-    marks=pytest.mark.skipif(
-        platform.system() == "Windows", reason="Supernova won't boot on Windows"
-    ),
+    marks=[
+        _skip_no_supernova_exe,
+        pytest.mark.skipif(
+            platform.system() == "Windows", reason="Supernova won't boot on Windows"
+        ),
+    ],
 )
 
 embedded = pytest.param("embedded", marks=_skip_no_scsynth)
@@ -94,7 +99,7 @@ def healthcheck_attempts(monkeypatch: MonkeyPatch) -> None:
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("executable", ["scsynth", supernova, embedded])
+@pytest.mark.parametrize("executable", [scsynth, supernova, embedded])
 @pytest.mark.parametrize(
     "async_callback, context_class",
     [(False, AsyncServer), (True, AsyncServer), (False, Server)],
@@ -128,7 +133,7 @@ async def test_boot_only(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("executable", ["scsynth", supernova, embedded])
+@pytest.mark.parametrize("executable", [scsynth, supernova, embedded])
 @pytest.mark.parametrize(
     "async_callback, context_class",
     [(False, AsyncServer), (True, AsyncServer), (False, Server)],
@@ -180,7 +185,7 @@ async def test_boot_and_quit(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("executable", ["scsynth", supernova, embedded])
+@pytest.mark.parametrize("executable", [scsynth, supernova, embedded])
 @pytest.mark.parametrize(
     "async_callback, context_class",
     [(False, AsyncServer), (True, AsyncServer), (False, Server)],
@@ -227,7 +232,7 @@ async def test_boot_and_boot(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("executable", ["scsynth", supernova, embedded])
+@pytest.mark.parametrize("executable", [scsynth, supernova, embedded])
 @pytest.mark.parametrize(
     "async_callback, context_class",
     [(False, AsyncServer), (True, AsyncServer), (False, Server)],
@@ -295,7 +300,7 @@ async def test_boot_and_quit_and_quit(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("executable", ["scsynth", supernova, embedded])
+@pytest.mark.parametrize("executable", [scsynth, supernova, embedded])
 @pytest.mark.parametrize(
     "async_callback, context_class",
     [(False, AsyncServer), (True, AsyncServer), (False, Server)],
@@ -340,7 +345,7 @@ async def test_boot_and_connect(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("executable", ["scsynth", supernova, embedded])
+@pytest.mark.parametrize("executable", [scsynth, supernova, embedded])
 @pytest.mark.parametrize(
     "async_callback, context_class",
     [(False, AsyncServer), (True, AsyncServer), (False, Server)],
@@ -409,7 +414,7 @@ async def test_boot_a_and_boot_b_cannot_boot(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("executable", ["scsynth", supernova, embedded])
+@pytest.mark.parametrize("executable", [scsynth, supernova, embedded])
 @pytest.mark.parametrize(
     "async_callback, context_class",
     [(False, AsyncServer), (True, AsyncServer), (False, Server)],
@@ -478,7 +483,7 @@ async def test_boot_a_and_connect_b_too_many_clients(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("executable", ["scsynth", supernova])
+@pytest.mark.parametrize("executable", [scsynth, supernova])
 @pytest.mark.parametrize(
     "async_callback, context_class",
     [(False, AsyncServer), (True, AsyncServer), (False, Server)],
@@ -595,7 +600,7 @@ async def test_boot_a_and_connect_b_and_quit_a(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("executable", ["scsynth", supernova])
+@pytest.mark.parametrize("executable", [scsynth, supernova])
 @pytest.mark.parametrize(
     "async_callback, context_class",
     [(False, AsyncServer), (True, AsyncServer), (False, Server)],
@@ -668,7 +673,7 @@ async def test_boot_a_and_connect_b_and_disconnect_b(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("executable", ["scsynth", supernova])
+@pytest.mark.parametrize("executable", [scsynth, supernova])
 @pytest.mark.parametrize(
     "async_callback, context_class",
     [(False, AsyncServer), (True, AsyncServer), (False, Server)],
@@ -739,7 +744,7 @@ async def test_boot_a_and_connect_b_and_disconnect_a(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("executable", ["scsynth", supernova])
+@pytest.mark.parametrize("executable", [scsynth, supernova])
 @pytest.mark.parametrize(
     "async_callback, context_class",
     [(False, AsyncServer), (True, AsyncServer), (False, Server)],
@@ -808,7 +813,7 @@ async def test_boot_a_and_connect_b_and_quit_b(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("executable", ["scsynth", supernova])
+@pytest.mark.parametrize("executable", [scsynth, supernova])
 @pytest.mark.parametrize(
     "async_callback, context_class",
     [(False, AsyncServer), (True, AsyncServer), (False, Server)],
@@ -905,7 +910,7 @@ async def test_boot_a_and_connect_b_and_force_quit_b(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("executable", ["scsynth", supernova])
+@pytest.mark.parametrize("executable", [scsynth, supernova])
 @pytest.mark.parametrize("context_class", [AsyncServer, Server])
 async def test_boot_reboot_sticky_options(
     context_class: Type[AsyncServer | Server],
@@ -931,7 +936,7 @@ async def test_boot_reboot_sticky_options(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("executable", ["scsynth", supernova])
+@pytest.mark.parametrize("executable", [scsynth, supernova])
 @pytest.mark.parametrize(
     "async_callback, context_class",
     [(False, AsyncServer), (True, AsyncServer), (False, Server)],

@@ -1121,7 +1121,7 @@ class ThreadedOscProtocol(OscProtocol):
             self._on_connect(boot_future=self.boot_future)
 
     def disconnect(self) -> None:
-        if self.status != BootStatus.ONLINE:
+        if self.status not in (BootStatus.ONLINE, BootStatus.BOOTING):
             osc_protocol_logger.info(
                 f"[{self.ip_address}:{self.port}/{self.name or hex(id(self))}] "
                 "already disconnected!"
@@ -1324,7 +1324,7 @@ class AsyncOscProtocol(asyncio.DatagramProtocol, OscProtocol):
             await self._on_connect(boot_future=self.boot_future)
 
     async def disconnect(self) -> None:
-        if self.status != BootStatus.ONLINE:
+        if self.status not in (BootStatus.ONLINE, BootStatus.BOOTING):
             osc_protocol_logger.info(
                 f"[{self.ip_address}:{self.port}/{self.name or hex(id(self))}] "
                 "already disconnected!"

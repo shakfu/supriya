@@ -6,6 +6,7 @@ from tempfile import NamedTemporaryFile, TemporaryDirectory
 import pytest
 
 from supriya import scsynth
+from .conftest import _skip_no_scsynth_exe
 
 
 @pytest.fixture
@@ -216,6 +217,7 @@ def test_find_on_path(mock_env_scsynth_path, monkeypatch):
         ),
     ],
 )
+@_skip_no_scsynth_exe
 def test_Options(kwargs: dict, expected: list[str]) -> None:
     options = scsynth.Options(**kwargs)
     actual = list(options)
