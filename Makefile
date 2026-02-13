@@ -7,9 +7,6 @@ formatPaths = src/${project}/ docs/ examples/ tests/ *.py
 mypyPaths = src/${project}/ examples/ tests/
 testPaths = src/${project}/ tests/
 
-SC_SOURCE_DIR ?= $(HOME)/src/supercollider
-SC_BUILD_DIR ?= $(HOME)/src/supercollider/build
-
 help: ## This help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
@@ -17,21 +14,15 @@ build: ## Build wheel via uv
 	uv build
 
 build-scsynth: ## Build wheel with embedded libscsynth
-	uv build \
-		-C cmake.define.SUPRIYA_EMBED_SCSYNTH=ON \
-		-C cmake.define.SC_SOURCE_DIR=$(SC_SOURCE_DIR) \
-		-C cmake.define.SC_BUILD_DIR=$(SC_BUILD_DIR)
+	uv build -C cmake.define.SUPRIYA_EMBED_SCSYNTH=ON
 
 install-scsynth: ## Install editable with embedded libscsynth
-	uv pip install -e . \
-		-C cmake.define.SUPRIYA_EMBED_SCSYNTH=ON \
-		-C cmake.define.SC_SOURCE_DIR=$(SC_SOURCE_DIR) \
-		-C cmake.define.SC_BUILD_DIR=$(SC_BUILD_DIR)
+	uv pip install -e . -C cmake.define.SUPRIYA_EMBED_SCSYNTH=ON
 
 demos: ## Run all demo scripts sequentially
 	@for f in demos/0*.py demos/1*.py; do \
 		echo "=== $$f ==="; \
-		SC_PLUGIN_PATH=$(SC_BUILD_DIR)/server/plugins uv run python "$$f"; \
+		uv run python "$$f"; \
 		echo; \
 	done
 
@@ -68,10 +59,10 @@ pytest: ## Unit test via pytest
 	uv run pytest ${testPaths} --cov=supriya
 
 test: ## Run tests via uv
-	SC_PLUGIN_PATH=$(SC_BUILD_DIR)/server/plugins uv run pytest tests/
+	uv run pytest tests/
 
 test-scsynth: ## Run tests using venv directly (after make install-scsynth)
-	SC_PLUGIN_PATH=$(SC_BUILD_DIR)/server/plugins .venv/bin/python -m pytest tests/ \
+	.venv/bin/python -m pytest tests/ \
 		--ignore=tests/book \
 		--ignore=tests/contexts/test_Scope.py \
 		--ignore=tests/contexts/test_Server_buffers.py \

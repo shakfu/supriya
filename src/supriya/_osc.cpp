@@ -11,6 +11,7 @@
 #include <nanobind/stl/vector.h>
 #include <nanobind/stl/optional.h>
 
+#include <Python.h>
 #include <cstdint>
 #include <cstring>
 #include <cmath>
@@ -315,13 +316,13 @@ static nb::tuple decode_message_clean(const uint8_t* data, size_t len) {
                     try {
                         parsed = decode_bundle_from_raw(blob_data, blob_size);
                         did_parse = true;
-                    } catch (...) {}
+                    } catch (...) { PyErr_Clear(); }
                 }
                 if (!did_parse) {
                     try {
                         parsed = decode_message_from_raw(blob_data, blob_size);
                         did_parse = true;
-                    } catch (...) {}
+                    } catch (...) { PyErr_Clear(); }
                 }
                 if (did_parse) {
                     array_stack.back().append(parsed);

@@ -289,6 +289,19 @@ def find_ugen_plugins_path() -> Path | None:
         path = Path(env_path)
         if path.is_dir():
             return path
+    # Bundled plugins (installed in wheel alongside this package)
+    bundled = Path(__file__).parent / "plugins"
+    if bundled.is_dir():
+        return bundled
+    # Editable installs: plugins may be next to compiled extensions
+    try:
+        from supriya import _scsynth
+
+        bundled = Path(_scsynth.__file__).parent / "plugins"
+        if bundled.is_dir():
+            return bundled
+    except (ImportError, TypeError):
+        pass
     # Next to bundled binary
     bundled = Path(__file__).parent / "bin" / "plugins"
     if bundled.is_dir():
